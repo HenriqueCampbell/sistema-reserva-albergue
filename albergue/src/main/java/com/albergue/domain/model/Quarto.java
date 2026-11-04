@@ -1,4 +1,4 @@
-package com.albergue.model;
+package com.albergue.domain.model;
 
 import lombok.*;
 

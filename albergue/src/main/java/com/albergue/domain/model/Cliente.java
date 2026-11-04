@@ -1,4 +1,4 @@
-package com.albergue.model;
+package com.albergue.domain.model;
 
 import lombok.*;
 
@@ -23,10 +23,9 @@ public class Cliente {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private LocalDateTime dataPagamento;
-    private BigDecimal valor;
-    private Boolean status;
-    
-    @OneToOne 
-    private Reserva reserva;
+    private String nome;
+    private String email;
+    private String telefone;
+    private String cpf;
+    private String senha;
 }
