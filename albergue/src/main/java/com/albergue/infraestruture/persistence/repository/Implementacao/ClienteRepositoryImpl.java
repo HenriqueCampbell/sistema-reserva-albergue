@@ -40,7 +40,9 @@ public class ClienteRepositoryImpl implements ClienteRepository {
             existingCliente.setEmail(cliente.getEmail());
             existingCliente.setTelefone(cliente.getTelefone());
             existingCliente.setCpf(cliente.getCpf());
-            existingCliente.setSenha(cliente.getSenha());
+            if (cliente.getSenha() != null) {
+                existingCliente.setSenha(cliente.getSenha());
+            }
             return jpaRepository.save(existingCliente);
         });
     }

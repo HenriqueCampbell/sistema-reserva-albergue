@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Teste da API | Albergue</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 960px; margin: 32px auto; padding: 0 16px; color: #243047; background: #f4f6f8; }
+        h1, h2 { color: #174a45; }
+        section { background: white; border: 1px solid #dce3e8; border-radius: 8px; padding: 20px; margin: 18px 0; }
+        form, .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; align-items: end; }
+        label { display: grid; gap: 6px; font-size: .95rem; }
+        input, button { font: inherit; padding: 10px; border: 1px solid #b8c5cc; border-radius: 5px; }
+        button { cursor: pointer; color: white; background: #17645a; border: 0; }
+        button:hover { background: #104c45; }
+        button.secondary { background: #526579; }
+        button.danger { background: #9c3434; }
+        .wide { grid-column: 1 / -1; }
+        .notice { padding: 10px; background: #fff7df; border-left: 4px solid #d2a52c; }
+        .result { padding: 12px; margin: 10px 0; border: 1px solid #dce3e8; border-radius: 5px; }
+        .result label { display: flex; align-items: center; }
+        .result input { width: auto; }
+        .message { margin-top: 12px; white-space: pre-wrap; }
+        .error { color: #a32121; }
+        .success { color: #17645a; }
+        .muted { color: #5e6b75; font-size: .9rem; }
+        @media (max-width: 520px) { body { margin-top: 16px; } section { padding: 14px; } }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Teste da API do Albergue</h1>
+    <p>Consulte vagas, teste uma reserva e acompanhe reservas existentes.</p>
+</header>
+
+<main>
+    <section aria-labelledby="availability-title">
+        <h2 id="availability-title">Consulta de Vagas</h2>
+        <form id="availability-form">
+            <label>Data de Início
+                <input type="date" name="dataInicio" required>
+            </label>
+            <label>Data de Fim
+                <input type="date" name="dataFim" required>
+            </label>
+            <button type="submit">Buscar Disponibilidade</button>
+        </form>
+        <p class="muted">A API só informa descrição, quarto, capacidade e valor. Banheiro, beliche e outras características aparecem se estiverem descritos nos dados cadastrados.</p>
+        <div id="availability-message" class="message" role="status" aria-live="polite"></div>
+        <div id="beds" aria-live="polite"></div>
+    </section>
+
+    <section aria-labelledby="client-title">
+        <h2 id="client-title">Cadastrar Cliente para Teste</h2>
+        <p class="muted">Cadastre um cliente de teste e use o ID retornado para fazer a reserva. Esta API ainda não implementa autenticação.</p>
+        <form id="client-form">
+            <label>Nome
+                <input type="text" name="nome" autocomplete="name" required>
+            </label>
+            <label>E-mail
+                <input type="email" name="email" autocomplete="email" required>
+            </label>
+            <label>Telefone
+                <input type="tel" name="telefone" autocomplete="tel">
+            </label>
+            <label>CPF (opcional)
+                <input type="text" name="cpf" autocomplete="off">
+            </label>
+            <button type="submit">Cadastrar Cliente</button>
+        </form>
+        <div id="client-message" class="message" role="status" aria-live="polite"></div>
+    </section>
+
+    <section aria-labelledby="booking-title">
+        <h2 id="booking-title">Realizar Reserva</h2>
+        <p class="notice">
+            Informe um ID de cliente cadastrado acima ou anteriormente. O cartão é apenas uma simulação local:
+            não é enviado nem salvo. Use somente dados fictícios; a API ainda não processa pagamentos.
+        </p>
+        <form id="booking-form">
+            <label>Cliente ID (já cadastrado)
+                <input type="number" name="clienteId" min="1" required>
+            </label>
+            <label>Número do cartão fictício
+                <input type="text" name="cartao" inputmode="numeric" autocomplete="off" placeholder="Não use cartão real">
+            </label>
+            <label>Validade fictícia
+                <input type="text" name="validade" autocomplete="off" placeholder="MM/AA">
+            </label>
+            <label>CVV fictício
+                <input type="password" name="cvv" inputmode="numeric" autocomplete="new-password">
+            </label>
+            <div class="wide">
+                <p><strong>Vagas selecionadas</strong></p>
+                <div id="selected-beds" class="muted">Busque a disponibilidade e selecione uma ou mais vagas.</div>
+            </div>
+            <button type="submit" class="wide">Reservar</button>
+        </form>
+        <div id="booking-message" class="message" role="status" aria-live="polite"></div>
+    </section>
+
+    <section aria-labelledby="reservations-title">
+        <h2 id="reservations-title">Consultar Reservas</h2>
+        <div class="fields">
+            <button type="button" id="list-reservations">Listar todas as reservas</button>
+            <label>Filtrar por Cliente ID
+                <input type="number" id="reservation-client-id" min="1">
+            </label>
+            <button type="button" class="secondary" id="list-client-reservations">Buscar reservas do cliente</button>
+        </div>
+        <div id="reservations-message" class="message" role="status" aria-live="polite"></div>
+        <div id="reservations"></div>
+    </section>
+</main>
+
+<script src="/script.js" defer></script>
+</body>
+</html>
