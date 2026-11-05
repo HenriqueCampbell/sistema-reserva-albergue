@@ -1,4 +1,4 @@
-package com.projeto.albergue;
+package com.albergue.albergue;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
