@@ -45,7 +45,7 @@
             </label>
             <button type="submit">Buscar Disponibilidade</button>
         </form>
-        <p class="muted">A API só informa descrição, quarto, capacidade e valor. Banheiro, beliche e outras características aparecem se estiverem descritos nos dados cadastrados.</p>
+        <p class="muted">Consulte vagas individuais ou quartos inteiros. A listagem informa capacidade, banheiro e as características cadastradas de cada vaga.</p>
         <div id="availability-message" class="message" role="status" aria-live="polite"></div>
         <div id="beds" aria-live="polite"></div>
     </section>
@@ -78,20 +78,26 @@
             não é enviado nem salvo. Use somente dados fictícios; a API não processa pagamentos.
         </p>
         <form id="booking-form">
+            <label>O que deseja reservar?
+                <select name="tipoReserva" id="reservation-type">
+                    <option value="VAGA">Vaga(s) individual(is)</option>
+                    <option value="QUARTO">Quarto inteiro</option>
+                </select>
+            </label>
             <label>Cliente ID (já cadastrado)
                 <input type="number" name="clienteId" min="1" required>
             </label>
             <label>Número do cartão fictício
-                <input type="text" name="cartao" inputmode="numeric" autocomplete="off" placeholder="Não use cartão real">
+                <input type="text" name="cartao" inputmode="numeric" autocomplete="off" placeholder="Não use cartão real" required>
             </label>
             <label>Validade fictícia
-                <input type="text" name="validade" autocomplete="off" placeholder="MM/AA">
+                <input type="text" name="validade" autocomplete="off" placeholder="MM/AA" required>
             </label>
             <label>CVV fictício
-                <input type="password" name="cvv" inputmode="numeric" autocomplete="new-password">
+                <input type="password" name="cvv" inputmode="numeric" autocomplete="new-password" required>
             </label>
             <div class="wide">
-                <p><strong>Vagas selecionadas</strong></p>
+                <p><strong>Itens selecionados</strong></p>
                 <div id="selected-beds" class="muted">Busque a disponibilidade e selecione uma ou mais vagas.</div>
             </div>
             <button type="submit" class="wide">Reservar</button>
@@ -101,6 +107,7 @@
 
     <section aria-labelledby="reservations-title">
         <h2 id="reservations-title">Consultar Reservas</h2>
+        <p class="muted">O cancelamento só é permitido com pelo menos 3 dias de antecedência da entrada.</p>
         <div class="fields">
             <button type="button" id="list-reservations">Listar todas as reservas</button>
             <label>Filtrar por Cliente ID

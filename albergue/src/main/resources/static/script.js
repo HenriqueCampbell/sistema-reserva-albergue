@@ -4,6 +4,8 @@ const bookingForm = document.querySelector("#booking-form");
 const bedsContainer = document.querySelector("#beds");
 const selectedBedsContainer = document.querySelector("#selected-beds");
 const selectedBeds = new Map();
+const reservationTypeSelect = document.querySelector("#reservation-type");
+let availableBeds = [];
 let searchedDates = null;
 
 clientForm.addEventListener("submit", async (event) => {
@@ -39,12 +41,17 @@ async function request(url, options = {}) {
         try {
             body = JSON.parse(text);
         } catch {
+            if (response.ok) {
+                throw new Error("A API retornou uma resposta JSON inválida.");
+            }
             body = text;
         }
     }
     if (!response.ok) {
-        const detail = typeof body === "string" ? body : JSON.stringify(body);
-        throw new Error(detail || `Erro HTTP ${response.status}`);
+        const detail = typeof body === "string"
+            ? body
+            : body?.message || body?.detail || body?.error || `Erro HTTP ${response.status}`;
+        throw new Error(detail);
     }
     return body;
 }
@@ -62,17 +69,75 @@ function describeBed(bed) {
         `Vaga ${bed.id ?? "sem ID"}`,
         bed.descricao || "Características da vaga não informadas",
         `Quarto ${room.numero ?? "não informado"}`,
-        room.descricao || "Características do quarto não informadas",
         room.capacidade != null ? `Capacidade: ${room.capacidade}` : null,
+        room.banheiro ? "Com banheiro" : "Sem banheiro",
         `Diária: ${formatCurrency(bed.valor)}`
     ].filter(Boolean);
     return details.join(" · ");
 }
 
+function addSelectableItem(container, id, description, selectionId = id) {
+    const card = document.createElement("div");
+    card.className = "result";
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = id;
+    checkbox.addEventListener("change", () => {
+        if (checkbox.checked) selectedBeds.set(String(selectionId), description);
+        else selectedBeds.delete(String(selectionId));
+        renderSelectedBeds();
+    });
+    label.append(checkbox, document.createTextNode(description));
+    card.append(label);
+    container.append(card);
+}
+
+function renderAvailableItems() {
+    bedsContainer.replaceChildren();
+    selectedBeds.clear();
+    renderSelectedBeds();
+    if (reservationTypeSelect.value === "VAGA") {
+        showMessage("availability-message", `${availableBeds.length} vaga(s) encontrada(s). Selecione as que deseja reservar.`);
+        for (const bed of availableBeds) {
+            addSelectableItem(bedsContainer, bed.id, describeBed(bed));
+        }
+        return;
+    }
+
+    const rooms = new Map();
+    for (const bed of availableBeds) {
+        const room = bed.quarto;
+        if (!room?.id) continue;
+        if (!rooms.has(room.id)) rooms.set(room.id, { room, beds: [] });
+        rooms.get(room.id).beds.push(bed);
+    }
+
+    const fullyAvailableRooms = Array.from(rooms.values())
+        .filter(({ room, beds }) => room.capacidade && beds.length === room.capacidade);
+    if (fullyAvailableRooms.length === 0) {
+        showMessage("availability-message", "Há vagas individuais disponíveis, mas nenhum quarto está com todas as vagas livres para o período.");
+        return;
+    }
+
+    showMessage("availability-message", `${fullyAvailableRooms.length} quarto(s) inteiro(s) disponível(is).`);
+    for (const { room, beds } of fullyAvailableRooms) {
+        const totalDailyPrice = beds.reduce((total, bed) => total + Number(bed.valor), 0);
+        const description = [
+            `Quarto ${room.numero}`,
+            `Capacidade: ${room.capacidade}`,
+            room.banheiro ? "Com banheiro" : "Sem banheiro",
+            `Todas as ${beds.length} vagas livres`,
+            `Diária do quarto: ${formatCurrency(totalDailyPrice)}`
+        ].join(" · ");
+        addSelectableItem(bedsContainer, room.id, description);
+    }
+}
+
 function renderSelectedBeds() {
     selectedBedsContainer.replaceChildren();
     if (selectedBeds.size === 0) {
-        selectedBedsContainer.textContent = "Busque a disponibilidade e selecione uma ou mais vagas.";
+        selectedBedsContainer.textContent = "Busque a disponibilidade e selecione vagas ou quartos.";
         return;
     }
     for (const [id, label] of selectedBeds) {
@@ -95,6 +160,8 @@ availabilityForm.addEventListener("submit", async (event) => {
     showMessage("availability-message", "Buscando vagas...");
     bedsContainer.replaceChildren();
     selectedBeds.clear();
+    availableBeds = [];
+    searchedDates = null;
     renderSelectedBeds();
     try {
         const beds = await request(`/api/quartos/disponiveis?dataInicio=${encodeURIComponent(dataInicio)}&dataFim=${encodeURIComponent(dataFim)}`);
@@ -103,28 +170,16 @@ availabilityForm.addEventListener("submit", async (event) => {
             showMessage("availability-message", "Nenhuma vaga disponível para o período.");
             return;
         }
-
-        showMessage("availability-message", `${beds.length} vaga(s) encontrada(s). Selecione as que deseja reservar.`);
-        for (const bed of beds) {
-            const card = document.createElement("div");
-            card.className = "result";
-            const label = document.createElement("label");
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.value = bed.id;
-            checkbox.addEventListener("change", () => {
-                if (checkbox.checked) selectedBeds.set(String(bed.id), describeBed(bed));
-                else selectedBeds.delete(String(bed.id));
-                renderSelectedBeds();
-            });
-            label.append(checkbox, document.createTextNode(describeBed(bed)));
-            card.append(label);
-            bedsContainer.append(card);
-        }
+        availableBeds = beds;
+        renderAvailableItems();
     } catch (error) {
         searchedDates = null;
         showMessage("availability-message", `Não foi possível consultar a disponibilidade: ${error.message}`, true);
     }
+});
+
+reservationTypeSelect.addEventListener("change", () => {
+    if (searchedDates && availableBeds.length > 0) renderAvailableItems();
 });
 
 bookingForm.addEventListener("submit", async (event) => {
@@ -138,20 +193,33 @@ bookingForm.addEventListener("submit", async (event) => {
     const requestBody = {
         clienteId: Number(formData.get("clienteId")),
         ...searchedDates,
-        leitosIds: Array.from(selectedBeds.keys(), Number)
+        tipoReserva: reservationTypeSelect.value,
+        itensIds: Array.from(selectedBeds.keys(), Number)
     };
-    const paymentDemoProvided = Boolean(formData.get("cartao") || formData.get("validade") || formData.get("cvv"));
     for (const field of ["cartao", "validade", "cvv"]) {
         bookingForm.elements[field].value = "";
     }
-    showMessage("booking-message", "Enviando reserva... O pagamento é apenas demonstrativo.");
+    showMessage("booking-message", "Criando reserva e simulando o pagamento...");
     try {
-        const reservation = await request("/api/reservas", {
+        let reservation = await request("/api/reservas", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestBody)
         });
-        showMessage("booking-message", `Reserva criada. ID: ${reservation?.id ?? "não informado"} · Status: ${reservation?.status ?? "não informado"} · Pagamento: ${paymentDemoProvided ? "simulação local (não enviada)" : "não informado"}. Nenhum dado de cartão foi enviado.`);
+        if (!reservation?.id) {
+            throw new Error("A API não retornou o ID da reserva criada.");
+        }
+        try {
+            reservation = await request(`/api/reservas/${reservation.id}/confirmar-pagamento-simulado`, { method: "POST" });
+            if (reservation?.status !== "CONFIRMADA") {
+                throw new Error(`A API retornou o status ${reservation?.status ?? "não informado"}.`);
+            }
+        } catch (error) {
+            showMessage("booking-message", `A reserva ${reservation.id} foi criada, mas permaneceu pendente porque a confirmação simulada falhou: ${error.message}. Você pode tentar confirmar pela lista de reservas.`, true);
+            await loadReservations("/api/reservas");
+            return;
+        }
+        showMessage("booking-message", `Reserva ${reservation.id} confirmada. Pagamento fictício aprovado localmente; nenhum dado de cartão foi enviado.`);
         await loadReservations("/api/reservas");
     } catch (error) {
         showMessage("booking-message", `Não foi possível criar a reserva: ${error.message}`, true);
@@ -173,7 +241,23 @@ async function loadReservations(url) {
             const card = document.createElement("div");
             card.className = "result";
             const summary = document.createElement("p");
-            summary.textContent = `Reserva ${reservation.id} · Cliente ${reservation.cliente?.id ?? "não informado"} · ${reservation.status ?? "status não informado"} · Entrada: ${reservation.dataEntrada ?? "—"} · Saída: ${reservation.dataSaida ?? "—"} · Total: ${formatCurrency(reservation.valorTotal)}`;
+            summary.textContent = `Reserva ${reservation.id} · ${reservation.tipoReserva === "QUARTO" ? "Quarto inteiro" : "Vaga(s)"} · Cliente ${reservation.cliente?.id ?? "não informado"} · ${reservation.status ?? "status não informado"} · Entrada: ${reservation.dataEntrada ?? "—"} · Saída: ${reservation.dataSaida ?? "—"} · Total: ${formatCurrency(reservation.valorTotal)}`;
+            if (reservation.status === "PENDENTE") {
+                const confirmButton = document.createElement("button");
+                confirmButton.type = "button";
+                confirmButton.textContent = "Simular pagamento e confirmar";
+                confirmButton.addEventListener("click", async () => {
+                    try {
+                        await request(`/api/reservas/${reservation.id}/confirmar-pagamento-simulado`, { method: "POST" });
+                        await loadReservations(url);
+                    } catch (error) {
+                        showMessage("reservations-message", `Não foi possível confirmar a reserva: ${error.message}`, true);
+                    }
+                });
+                card.append(summary, confirmButton);
+            } else {
+                card.append(summary);
+            }
             const cancelButton = document.createElement("button");
             cancelButton.type = "button";
             cancelButton.className = "danger";
@@ -187,7 +271,7 @@ async function loadReservations(url) {
                     showMessage("reservations-message", `Não foi possível cancelar a reserva: ${error.message}`, true);
                 }
             });
-            card.append(summary, cancelButton);
+            card.append(cancelButton);
             container.append(card);
         }
     } catch (error) {

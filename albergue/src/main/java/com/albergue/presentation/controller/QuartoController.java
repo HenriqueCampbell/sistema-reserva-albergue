@@ -2,12 +2,12 @@ package com.albergue.presentation.controller;
 
 import com.albergue.application.service.QuartoService;
 import com.albergue.application.service.ReservaService;
-import com.albergue.domain.model.Leito;
 import com.albergue.domain.model.Quarto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -50,10 +50,30 @@ public class QuartoController {
     }
 
     @GetMapping("/disponiveis")
-    public ResponseEntity<List<Leito>> consultarVagasDisponiveis(
+    public ResponseEntity<List<LeitoDisponivelResponse>> consultarVagasDisponiveis(
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim) {
-        List<Leito> leitosDisponiveis = reservaService.consultarDisponibilidade(dataInicio, dataFim);
+        List<LeitoDisponivelResponse> leitosDisponiveis = reservaService.consultarDisponibilidade(dataInicio, dataFim)
+                .stream()
+                .map(leito -> new LeitoDisponivelResponse(
+                        leito.getId(),
+                        leito.getDescricao(),
+                        leito.getValor(),
+                        leito.getQuarto() == null ? null : new QuartoResumo(
+                                leito.getQuarto().getId(),
+                                leito.getQuarto().getNumero(),
+                                leito.getQuarto().getCapacidade(),
+                                leito.getQuarto().getDescricao(),
+                                leito.getQuarto().isBanheiro()
+                        )
+                ))
+                .toList();
         return ResponseEntity.ok(leitosDisponiveis);
+    }
+
+    public record LeitoDisponivelResponse(Long id, String descricao, BigDecimal valor, QuartoResumo quarto) {
+    }
+
+    public record QuartoResumo(Long id, Integer numero, Integer capacidade, String descricao, boolean banheiro) {
     }
 }

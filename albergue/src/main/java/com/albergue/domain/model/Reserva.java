@@ -32,6 +32,9 @@ public class Reserva {
     private BigDecimal valorTotal;
 
     @Enumerated(EnumType.STRING)
+    private TipoReserva tipoReserva;
+
+    @Enumerated(EnumType.STRING)
     private StatusReserva status;
     
     @OneToOne 
@@ -47,5 +50,10 @@ public class Reserva {
         PENDENTE,
         CONFIRMADA,
         CANCELADA
+    }
+
+    public enum TipoReserva {
+        VAGA,
+        QUARTO
     }
 }
